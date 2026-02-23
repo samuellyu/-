@@ -54,4 +54,5 @@ export interface GameState {
   explosions: Explosion[];
   cities: City[];
   batteries: Battery[];
+  destroyedCount: number;
 }

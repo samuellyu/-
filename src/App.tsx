@@ -18,7 +18,7 @@ import {
 } from './types';
 
 // Constants
-const TARGET_SCORE = 1500;
+const TARGET_SCORE = 3000;
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 const EXPLOSION_MAX_RADIUS = 40;
@@ -49,6 +49,7 @@ export default function App() {
       { id: 'b2', pos: { x: 400, y: 550 }, ammo: 40, maxAmmo: 40, destroyed: false },
       { id: 'b3', pos: { x: 750, y: 550 }, ammo: 20, maxAmmo: 20, destroyed: false },
     ],
+    destroyedCount: 0,
   });
 
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
@@ -71,6 +72,7 @@ export default function App() {
       target: '目标',
       ammo: '弹药',
       level: '关卡',
+      power: '威力',
       instructions: '点击屏幕发射拦截导弹。保护城市和炮台！',
       lostMsg: '所有炮台已被摧毁。',
       winMsg: '你成功保卫了地球！',
@@ -85,6 +87,7 @@ export default function App() {
       target: 'Target',
       ammo: 'Ammo',
       level: 'Level',
+      power: 'Power',
       instructions: 'Click to fire interceptors. Protect cities and batteries!',
       lostMsg: 'All batteries destroyed.',
       winMsg: 'You successfully defended Earth!',
@@ -112,6 +115,7 @@ export default function App() {
         { id: 'b2', pos: { x: 400, y: 550 }, ammo: 40, maxAmmo: 40, destroyed: false },
         { id: 'b3', pos: { x: 750, y: 550 }, ammo: 20, maxAmmo: 20, destroyed: false },
       ],
+      destroyedCount: 0,
     });
   }, []);
 
@@ -187,6 +191,7 @@ export default function App() {
     if (nearestBatteryIdx !== -1) {
       const battery = s.batteries[nearestBatteryIdx];
       const id = Math.random().toString(36).substr(2, 9);
+      const currentPower = 0.5 + Math.floor(s.destroyedCount / 5) * 0.5;
       
       const newInterceptor: Interceptor = {
         id,
@@ -216,7 +221,7 @@ export default function App() {
     }
 
     setGameState(prev => {
-      let { rockets, interceptors, explosions, cities, batteries, score, status } = prev;
+      let { rockets, interceptors, explosions, cities, batteries, score, status, destroyedCount } = prev;
 
       // 2. Update Rockets
       rockets = rockets.map(r => {
@@ -248,11 +253,12 @@ export default function App() {
 
         if (dist < i.speed) {
           // Create explosion
+          const currentPower = 0.5 + Math.floor(destroyedCount / 5) * 0.5;
           explosions.push({
             id: Math.random().toString(36).substr(2, 9),
             pos: { ...i.target },
             radius: 2,
-            maxRadius: EXPLOSION_MAX_RADIUS,
+            maxRadius: EXPLOSION_MAX_RADIUS * currentPower,
             growing: true,
             alpha: 1
           });
@@ -287,6 +293,7 @@ export default function App() {
 
         if (hit) {
           score += 50;
+          destroyedCount += 1;
           return null;
         }
         return r;
@@ -307,7 +314,7 @@ export default function App() {
         }
       }
 
-      return { ...prev, rockets, interceptors, explosions, cities, batteries, score, status };
+      return { ...prev, rockets, interceptors, explosions, cities, batteries, score, status, destroyedCount };
     });
   }, [spawnRocket]);
 
@@ -319,20 +326,94 @@ export default function App() {
 
     const s = stateRef.current;
 
-    // Clear
-    ctx.fillStyle = '#09090b'; // zinc-950
+    // 1. Draw Space Background (Deep Gradient)
+    const spaceGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    spaceGradient.addColorStop(0, '#020617'); // slate-950
+    spaceGradient.addColorStop(0.5, '#0f172a'); // slate-900
+    spaceGradient.addColorStop(1, '#1e1b4b'); // indigo-950
+    ctx.fillStyle = spaceGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw Ground
-    ctx.fillStyle = '#18181b'; // zinc-900
-    ctx.fillRect(0, 550, canvas.width, 50);
+    // 2. Draw Stars (Static for now, but could be animated)
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 100; i++) {
+      const x = (Math.sin(i * 123.45) * 0.5 + 0.5) * canvas.width;
+      const y = (Math.cos(i * 678.90) * 0.5 + 0.5) * canvas.height * 0.9;
+      const size = Math.random() * 1.5;
+      const alpha = 0.2 + Math.random() * 0.8;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+
+    // 3. Draw Tech Grid (Subtle)
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)'; // sky-400 very transparent
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+
+    // 4. Draw Earth Horizon (Curved and Glowing)
+    const earthY = 550;
+    const earthRadius = 1200;
+    const earthCenterX = canvas.width / 2;
+    const earthCenterY = earthY + earthRadius - 20;
+
+    // Atmosphere Glow
+    const atmosGlow = ctx.createRadialGradient(
+      earthCenterX, earthCenterY, earthRadius - 40,
+      earthCenterX, earthCenterY, earthRadius + 20
+    );
+    atmosGlow.addColorStop(0, 'rgba(14, 165, 233, 0.4)'); // sky-500
+    atmosGlow.addColorStop(0.5, 'rgba(14, 165, 233, 0.1)');
+    atmosGlow.addColorStop(1, 'rgba(14, 165, 233, 0)');
+
+    ctx.fillStyle = atmosGlow;
+    ctx.beginPath();
+    ctx.arc(earthCenterX, earthCenterY, earthRadius + 20, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Earth Body
+    const earthGradient = ctx.createLinearGradient(0, earthY, 0, canvas.height);
+    earthGradient.addColorStop(0, '#0c4a6e'); // sky-900
+    earthGradient.addColorStop(1, '#082f49'); // sky-950
+    ctx.fillStyle = earthGradient;
+    ctx.beginPath();
+    ctx.arc(earthCenterX, earthCenterY, earthRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Earth Surface Detail (Tech lines on Earth)
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+    ctx.beginPath();
+    ctx.arc(earthCenterX, earthCenterY, earthRadius - 5, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.stroke();
 
     // Draw Cities
     s.cities.forEach(c => {
       if (!c.destroyed) {
+        // Tech City Look
         ctx.fillStyle = '#10b981'; // emerald-500
-        ctx.fillRect(c.pos.x - 15, c.pos.y - 10, 30, 10);
-        ctx.fillRect(c.pos.x - 10, c.pos.y - 20, 20, 10);
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#10b981';
+        ctx.fillRect(c.pos.x - 12, c.pos.y - 15, 24, 15);
+        ctx.fillRect(c.pos.x - 6, c.pos.y - 25, 12, 10);
+        ctx.shadowBlur = 0;
+        
+        // Windows
+        ctx.fillStyle = '#ecfdf5';
+        ctx.fillRect(c.pos.x - 8, c.pos.y - 12, 4, 4);
+        ctx.fillRect(c.pos.x + 4, c.pos.y - 12, 4, 4);
       } else {
         ctx.fillStyle = '#3f3f46'; // zinc-600
         ctx.fillRect(c.pos.x - 15, c.pos.y - 5, 30, 5);
@@ -343,11 +424,21 @@ export default function App() {
     s.batteries.forEach(b => {
       if (!b.destroyed) {
         ctx.fillStyle = '#3b82f6'; // blue-500
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#3b82f6';
+        
+        // Base
         ctx.beginPath();
         ctx.moveTo(b.pos.x - 20, b.pos.y);
-        ctx.lineTo(b.pos.x, b.pos.y - 30);
+        ctx.lineTo(b.pos.x - 10, b.pos.y - 20);
+        ctx.lineTo(b.pos.x + 10, b.pos.y - 20);
         ctx.lineTo(b.pos.x + 20, b.pos.y);
         ctx.fill();
+        
+        // Cannon
+        ctx.fillRect(b.pos.x - 4, b.pos.y - 35, 8, 15);
+        
+        ctx.shadowBlur = 0;
       } else {
         ctx.fillStyle = '#ef4444'; // red-500
         ctx.beginPath();
@@ -438,6 +529,12 @@ export default function App() {
             <RocketIcon className="w-4 h-4 text-purple-400" />
             <span className="text-sm font-mono tracking-wider">
               {t.level}: <span className="text-purple-400 font-bold">{gameState.level}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+            <Info className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm font-mono tracking-wider">
+              {t.power}: <span className="text-cyan-400 font-bold">x{(0.5 + Math.floor(gameState.destroyedCount / 5) * 0.5).toFixed(1)}</span>
             </span>
           </div>
         </div>
