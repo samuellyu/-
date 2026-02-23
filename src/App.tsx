@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Rocket as RocketIcon, Trophy, RotateCcw, Play, Pause, Info } from 'lucide-react';
+import { Shield, Rocket as RocketIcon, Trophy, RotateCcw, Play, Pause, Info, Volume2, VolumeX } from 'lucide-react';
 import { 
   Point, 
   Rocket, 
@@ -16,6 +16,7 @@ import {
   GameStatus, 
   GameState 
 } from './types';
+import { soundService } from './services/soundService';
 
 // Constants
 const TARGET_SCORE = 3000;
@@ -53,6 +54,7 @@ export default function App() {
   });
 
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const requestRef = useRef<number>(null);
   const stateRef = useRef<GameState>(gameState);
 
@@ -149,6 +151,8 @@ export default function App() {
       ...prev,
       rockets: [...prev.rockets, newRocket]
     }));
+
+    soundService.playAlert();
   }, []);
 
   const handleCanvasClick = (e: React.MouseEvent | React.TouchEvent) => {
@@ -208,6 +212,8 @@ export default function App() {
           interceptors: [...prev.interceptors, newInterceptor]
         };
       });
+
+      soundService.playLaunch();
     }
   };
 
@@ -231,6 +237,7 @@ export default function App() {
         
         if (dist < r.speed) {
           // Hit target
+          soundService.playExplosion();
           const cityHit = cities.find(c => c.pos.x === r.target.x && c.pos.y === r.target.y);
           if (cityHit) cityHit.destroyed = true;
           
@@ -253,6 +260,7 @@ export default function App() {
 
         if (dist < i.speed) {
           // Create explosion
+          soundService.playExplosion();
           const currentPower = 0.5 + Math.floor(destroyedCount / 5) * 0.5;
           explosions.push({
             id: Math.random().toString(36).substr(2, 9),
@@ -495,6 +503,10 @@ export default function App() {
 
   }, []);
 
+  useEffect(() => {
+    soundService.setEnabled(soundEnabled);
+  }, [soundEnabled]);
+
   const gameLoop = useCallback(() => {
     update();
     draw();
@@ -540,12 +552,20 @@ export default function App() {
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <button 
-            onClick={() => setLang(l => l === 'zh' ? 'en' : 'zh')}
-            className="pointer-events-auto bg-black/40 backdrop-blur-md px-3 py-1 rounded-md border border-white/10 text-xs hover:bg-white/10 transition-colors"
-          >
-            {lang === 'zh' ? 'English' : '中文'}
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setSoundEnabled(s => !s)}
+              className="pointer-events-auto bg-black/40 backdrop-blur-md p-2 rounded-md border border-white/10 hover:bg-white/10 transition-colors"
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+            <button 
+              onClick={() => setLang(l => l === 'zh' ? 'en' : 'zh')}
+              className="pointer-events-auto bg-black/40 backdrop-blur-md px-3 py-1 rounded-md border border-white/10 text-xs hover:bg-white/10 transition-colors"
+            >
+              {lang === 'zh' ? 'English' : '中文'}
+            </button>
+          </div>
         </div>
       </div>
 
