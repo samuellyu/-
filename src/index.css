@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=ZCOOL+KuaiLe&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-game: "ZCOOL KuaiLe", cursive;
+}
+
+body {
+  @apply bg-zinc-950 text-zinc-100 overflow-hidden;
+  font-family: var(--font-sans);
+}
+
+.game-text {
+  font-family: var(--font-game);
+}
+
